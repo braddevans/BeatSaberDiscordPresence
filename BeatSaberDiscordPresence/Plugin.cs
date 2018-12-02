@@ -27,7 +27,7 @@ namespace BeatSaberDiscordPresence
 
 		public string Version
 		{
-			get { return "v2.0.3"; }
+			get { return "v2.0.3.1"; }
 		}
 		
 		public void OnApplicationStart()
@@ -117,9 +117,9 @@ namespace BeatSaberDiscordPresence
 				}
                 
                 if (IsParty())
-                    Presence.state += "Party";
+                    Presence.state += "Party ";
                 else
-                    Presence.state += "Solo";
+                    Presence.state += "Solo ";
 
                 var gameplayModeText = _gamemode == GameMode.OneSaber ? "One Saber" : _gamemode == GameMode.NoArrows ? "No Arrow" : "Standard";
                 Presence.state += gameplayModeText;
