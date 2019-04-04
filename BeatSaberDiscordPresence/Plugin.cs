@@ -12,7 +12,7 @@ namespace BeatSaberDiscordPresence
 	public class Plugin : IPlugin
     {
         public string Name => "Discord Presence";
-        public string Version => "v2.0.4";
+        public string Version => "2.1.1";
 
 
 
@@ -221,7 +221,7 @@ namespace BeatSaberDiscordPresence
                 return "Arcade"; // Unused ?
             if (t == typeof(PartyFreePlayFlowCoordinator))
                 return "Party";
-            if (t == typeof(DemoFlowCoordinator) || t == typeof(SimpleDemoFlowCoordinator))
+            if (t == typeof(SimpleDemoFlowCoordinator))
                 return "Demo"; // Unused ?
             if (t == typeof(CampaignFlowCoordinator))
                 return "Campaign";
