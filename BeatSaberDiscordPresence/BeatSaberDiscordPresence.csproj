@@ -8,8 +8,8 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>BeatSaberDiscordPresence</RootNamespace>
-    <AssemblyName>BeatSaberDiscordPresence</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <AssemblyName>Discord Presence</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -38,12 +38,8 @@
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="IllusionInjector">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\IllusionInjector.dll</HintPath>
-    </Reference>
-    <Reference Include="IllusionPlugin, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\IllusionPlugin.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="IPA.Loader">
+      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\IPA\Data\Managed\IPA.Loader.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -62,6 +58,9 @@
     <Compile Include="DiscordRpc.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="manifest.json" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">

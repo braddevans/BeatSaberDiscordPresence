@@ -2,18 +2,17 @@
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using IllusionInjector;
-using IllusionPlugin;
+using IPA;
+using IPA.Logging;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace BeatSaberDiscordPresence
 {
-	public class Plugin : IPlugin
+	public class Plugin : IBeatSaberPlugin
     {
         public string Name => "Discord Presence";
-        public string Version => "2.1.1";
-
+        public string Version => "2.2.0";
 
 
         private const string MenuSceneName = "MenuCore";
@@ -22,32 +21,34 @@ namespace BeatSaberDiscordPresence
 		private const string DiscordAppID = "445053620698742804";
 		public static readonly DiscordRpc.RichPresence Presence = new DiscordRpc.RichPresence();
 
-		private GameplayCoreSceneSetupData _mainSetupData;
+        private IPA.Logging.Logger logger;
+
+        private GameplayCoreSceneSetupData _mainSetupData;
         private GameplayCoreSceneSetup _gameplaySetup;
         private MainFlowCoordinator _mainFlowCoordinator;
 
         private bool _init;
-
         private FieldInfo _gameplayCoreSceneSetupDataField = null;
         private FieldInfo _oneColorBeatmapCharacteristic = null;
+        private Component _z;
 
-        private PluginComponent gameObject = null;
+        private MonoBehaviour gameObject = null;
         
         private GameMode _gamemode = GameMode.Standard;
-		
-		public void OnApplicationStart()
-		{
 
-			if (_init) return;
-			_init = true;
 
-            gameObject = GameObject.FindObjectOfType<PluginComponent>();
+        public void Init(IPA.Logging.Logger log)
+        {
+            if (_init) return;
+            _init = true;
+
+            logger = log;
+
+            gameObject = Resources.FindObjectsOfTypeAll<MonoBehaviour>().First(c => c.GetType().Name == "PluginComponent");
 
             try
             {
                 Console.WriteLine("Discord Presence - Initializing");
-                Console.WriteLine("Discord Presence - Registering scene change events");
-                SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 
                 Console.WriteLine("Discord Presence - Starting Discord RichPresence");
                 var handlers = new DiscordRpc.EventHandlers();
@@ -68,25 +69,26 @@ namespace BeatSaberDiscordPresence
 
                 Console.WriteLine("Discord Presence - Init done !");
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine("Discord Presence - Unable to initialize plugin:\n" + e);
             }
-		}
+        }
 
         public void OnApplicationQuit()
 		{
-            SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
             DiscordRpc.Shutdown();
         }
 
-        private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
+        public void OnActiveSceneChanged(Scene oldScene, Scene newScene)
         {
             UpdatePresence(newScene);
         }
 
-        private void UpdatePresence(Scene newScene) {
-			if (newScene.name == MenuSceneName)
+        private void UpdatePresence(Scene newScene)
+        {
+
+            if (newScene.name == MenuSceneName)
 			{
 				//Menu scene loaded
 				Presence.details = "In Menu";
@@ -112,6 +114,14 @@ namespace BeatSaberDiscordPresence
             // Fetch all required objects
             _mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
             _gameplaySetup = Resources.FindObjectsOfTypeAll<GameplayCoreSceneSetup>().FirstOrDefault();
+
+            if (_z == null)
+            {
+                _z = Resources.FindObjectsOfTypeAll<Component>().FirstOrDefault(c => c != null && c.GetType().Name == "Z");
+                if (_z == null)
+                    Console.WriteLine("Discord Presence - No element of type \"Z\" found. Maybe the game isn't running a version of ScoreSaber supporting replay ?");
+            }
+
             if (_gameplaySetup != null)
                 _mainSetupData = _gameplayCoreSceneSetupDataField.GetValue(_gameplaySetup) as GameplayCoreSceneSetupData;
 #if DEBUG
@@ -134,9 +144,26 @@ namespace BeatSaberDiscordPresence
             
             Presence.details = $"{diff.level.songName} | {diff.difficulty.Name()}";
             Presence.state = "";
+
+            //if()
+
+            Presence.state = "";
+
+            if (_z != null)
+            {
+                Console.WriteLine("--------------------------");
+                FieldInfo[] fields = _z.GetType().GetFields((BindingFlags)(-1));
+                foreach(FieldInfo fi in fields)
+                {
+                    if(fi.FieldType.Name == "Mode" && fi.GetValue(_z).ToString() == "Playback")
+                        Presence.state += "[Replay] ";
+                    //Console.WriteLine("Discord Presence - [" + fi.Name + ": " + fi.FieldType.Name + "] => " + fi.GetValue(_z));
+                }
+            }
+
             if (diff.level.levelID.Contains('∎'))
             {
-                Presence.state = "Custom | ";
+                Presence.state += "Custom | ";
             }
 
             if(_mainSetupData.practiceSettings != null)
@@ -231,8 +258,9 @@ namespace BeatSaberDiscordPresence
         public void OnLevelWasLoaded(int level) { }
         public void OnLevelWasInitialized(int level) { }
         public void OnFixedUpdate() { }
-
-
+        public void OnSceneLoaded(Scene scene, LoadSceneMode sceneMode) { }
+        public void OnSceneUnloaded(Scene scene) { }
+        public void OnApplicationStart() { }
 
         private enum GameMode
         {

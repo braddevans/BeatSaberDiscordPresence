@@ -1,0 +1,13 @@
+﻿{
+  "$schema": "https://raw.githubusercontent.com/nike4613/ModSaber-MetadataFileSchema/master/Schema.json",
+  "author": "Slaynash",
+  "description": "Adds Discord Rich Presence to Beat Saber .",
+  "gameVersion": "1.0.0",
+  "id": "Discord Presence",
+  "name": "Discord Presence",
+  "version": "2.2.0",
+  "features": [],
+  "links": {
+    "project-home": "https://github.com/Slaynash/BeatSaberDiscordPresence"
+  }
+} 
