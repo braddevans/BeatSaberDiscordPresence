@@ -2,8 +2,11 @@
 using System.Collections;
 using System.Linq;
 using System.Reflection;
+using Harmony;
 using IPA;
+using IPA.Loader;
 using IPA.Logging;
+using IPA.Old;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,10 +14,6 @@ namespace BeatSaberDiscordPresence
 {
 	public class Plugin : IBeatSaberPlugin
     {
-        public string Name => "Discord Presence";
-        public string Version => "2.2.0";
-
-
         private const string MenuSceneName = "MenuCore";
 		private const string GameSceneName = "GameCore";
 
@@ -22,7 +21,7 @@ namespace BeatSaberDiscordPresence
 		public static readonly DiscordRpc.RichPresence Presence = new DiscordRpc.RichPresence();
 
         private IPA.Logging.Logger logger;
-
+        private HarmonyInstance harmonyInstance;
         private GameplayCoreSceneSetupData _mainSetupData;
         private GameplayCoreSceneSetup _gameplaySetup;
         private MainFlowCoordinator _mainFlowCoordinator;
@@ -32,9 +31,16 @@ namespace BeatSaberDiscordPresence
         private FieldInfo _oneColorBeatmapCharacteristic = null;
         private Component _z;
 
+        private FieldInfo clientInstanceInroomField;
+        private FieldInfo clientInstanceField;
+
         private MonoBehaviour gameObject = null;
         
         private GameMode _gamemode = GameMode.Standard;
+
+
+        private HarmonyMethod GetVoidPatch() => new HarmonyMethod(typeof(Plugin).GetMethod("VoidPatch", (BindingFlags)(-1)));
+        private bool VoidPatch() => false;
 
 
         public void Init(IPA.Logging.Logger log)
@@ -44,35 +50,71 @@ namespace BeatSaberDiscordPresence
 
             logger = log;
 
+            harmonyInstance = HarmonyInstance.Create("slaynash.discordpresence");
+
             gameObject = Resources.FindObjectsOfTypeAll<MonoBehaviour>().First(c => c.GetType().Name == "PluginComponent");
 
             try
             {
-                Console.WriteLine("Discord Presence - Initializing");
+                logger.Info("Initializing");
 
-                Console.WriteLine("Discord Presence - Starting Discord RichPresence");
+                logger.Info("Starting Discord RichPresence");
                 var handlers = new DiscordRpc.EventHandlers();
                 DiscordRpc.Initialize(DiscordAppID, ref handlers, false, string.Empty);
 
-                Console.WriteLine("Discord Presence - Fetching nonpublic fields");
-
+                logger.Info("Fetching nonpublic fields");
                 _gameplayCoreSceneSetupDataField = typeof(SceneSetup<GameplayCoreSceneSetupData>).GetField("_sceneSetupData", BindingFlags.NonPublic | BindingFlags.Instance);
                 _oneColorBeatmapCharacteristic = typeof(GameplayCoreSceneSetup).GetField("_oneColorBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance);
 #if DEBUG
-                Console.WriteLine("Discord Presence - Field SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData: " + _gameplayCoreSceneSetupDataField);
+                logger.Debug("Discord Presence - Field SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData: " + _gameplayCoreSceneSetupDataField);
 #endif
                 if (_gameplayCoreSceneSetupDataField == null)
                 {
-                    Console.WriteLine("Discord Presence - Unable to fetch SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData");
+                    logger.Error("Unable to fetch SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData");
                     return;
                 }
 
-                Console.WriteLine("Discord Presence - Init done !");
+                logger.Info("Init done !");
             }
             catch (Exception e)
             {
-                Console.WriteLine("Discord Presence - Unable to initialize plugin:\n" + e);
+                logger.Error("Unable to initialize plugin:\n" + e);
             }
+        }
+
+        public void OnApplicationStart()
+        {
+            logger.Info("Looking for BeatSaberMultiplayer");
+            PluginLoader.PluginInfo beatsabermultiplayer = PluginManager.GetPluginFromId("BeatSaberMultiplayer");
+            if (beatsabermultiplayer != null)
+            {
+                Type multiplayerClientType = beatsabermultiplayer.Metadata.Assembly.GetType("BeatSaberMultiplayer.Client");
+                if(multiplayerClientType != null)
+                {
+                    clientInstanceField = multiplayerClientType.GetField("instance", (BindingFlags)(-1));
+                    clientInstanceInroomField = multiplayerClientType.GetField("inRoom", (BindingFlags)(-1));
+                    logger.Info("BeatSaberMultiplayer found and linked.");
+                }
+                else
+                    logger.Warn("Found BeatSaberMultiplayer, but not type BeatSaberMultiplayer.Client. Multiplayer won't be shown on discord.");
+            }
+            logger.Info("Looking for YURFit (IPA)");
+#pragma warning disable CS0618
+            IPlugin yurfit = PluginManager.Plugins.FirstOrDefault((IPlugin x) => x.Name == "YURfitMod");
+            if(yurfit != null)
+            {
+                Type yurpresence = yurfit.GetType().Assembly.GetType("YURfitMod.RPC.YURpresence");
+                if (yurpresence != null)
+                {
+                    harmonyInstance.Patch(yurpresence.GetMethod("Awake", (BindingFlags)(-1)), GetVoidPatch(), null, null);
+                    harmonyInstance.Patch(yurpresence.GetMethod("Menu", (BindingFlags)(-1)), GetVoidPatch(), null, null);
+                    logger.Info("YURFit found as IPA Plugin and patched.");
+                }
+                else
+                    logger.Warn("Found YURFit as IPA Plugin, but not type YURfitMod.RPC.YURpresence. There may be some conflivts between the two mods.");
+
+            }
+#pragma warning restore CS0618
         }
 
         public void OnApplicationQuit()
@@ -119,21 +161,21 @@ namespace BeatSaberDiscordPresence
             {
                 _z = Resources.FindObjectsOfTypeAll<Component>().FirstOrDefault(c => c != null && c.GetType().Name == "Z");
                 if (_z == null)
-                    Console.WriteLine("Discord Presence - No element of type \"Z\" found. Maybe the game isn't running a version of ScoreSaber supporting replay ?");
+                    logger.Warn("No element of type \"Z\" found. Maybe the game isn't running a version of ScoreSaber supporting replay ?");
             }
 
             if (_gameplaySetup != null)
                 _mainSetupData = _gameplayCoreSceneSetupDataField.GetValue(_gameplaySetup) as GameplayCoreSceneSetupData;
 #if DEBUG
-            Console.WriteLine("Discord Presence - _gameplaySetup: " + _gameplaySetup);
-            Console.WriteLine("Discord Presence - _gameplayCoreSceneSetupDataField: " + _gameplayCoreSceneSetupDataField);
-            Console.WriteLine("Discord Presence - _mainSetupData: " + _mainSetupData);
+            logger.Debug("_gameplaySetup: " + _gameplaySetup);
+            logger.Debug("_gameplayCoreSceneSetupDataField: " + _gameplayCoreSceneSetupDataField);
+            logger.Debug("_mainSetupData: " + _mainSetupData);
             GetFlowTypeHumanReadable(); // Used to debug print values
 #endif
             // Check if every required object is found
             if (_mainSetupData == null || _gameplaySetup == null || _mainFlowCoordinator == null)
             {
-                Console.WriteLine("Discord Presence - Error finding the scriptable objects required to update presence. (_mainSetupData: " + (_mainSetupData == null ? "N/A" : "OK") + ", _gameplaySetup: " + (_gameplaySetup == null ? "N/A" : "OK") + ", _mainFlowCoordinator: " + (_mainFlowCoordinator == null ? "N/A" : "OK"));
+                logger.Error("Error finding the scriptable objects required to update presence. (_mainSetupData: " + (_mainSetupData == null ? "N/A" : "OK") + ", _gameplaySetup: " + (_gameplaySetup == null ? "N/A" : "OK") + ", _mainFlowCoordinator: " + (_mainFlowCoordinator == null ? "N/A" : "OK"));
                 Presence.details = "Playing";
                 DiscordRpc.UpdatePresence(Presence);
                 yield break;
@@ -145,19 +187,15 @@ namespace BeatSaberDiscordPresence
             Presence.details = $"{diff.level.songName} | {diff.difficulty.Name()}";
             Presence.state = "";
 
-            //if()
-
-            Presence.state = "";
-
             if (_z != null)
             {
-                Console.WriteLine("--------------------------");
+                //Console.WriteLine("--------------------------");
                 FieldInfo[] fields = _z.GetType().GetFields((BindingFlags)(-1));
                 foreach(FieldInfo fi in fields)
                 {
                     if(fi.FieldType.Name == "Mode" && fi.GetValue(_z).ToString() == "Playback")
                         Presence.state += "[Replay] ";
-                    //Console.WriteLine("Discord Presence - [" + fi.Name + ": " + fi.FieldType.Name + "] => " + fi.GetValue(_z));
+                    //logger.Debug("Discord Presence - [" + fi.Name + ": " + fi.FieldType.Name + "] => " + fi.GetValue(_z));
                 }
             }
 
@@ -171,8 +209,8 @@ namespace BeatSaberDiscordPresence
 
             Presence.state += GetFlowTypeHumanReadable() + " ";
 #if DEBUG
-            Console.WriteLine("Discord Presence - diff.parentDifficultyBeatmapSet.beatmapCharacteristic: " + diff.parentDifficultyBeatmapSet.beatmapCharacteristic);
-            Console.WriteLine("Discord Presence - _gameplaySetup._oneColorBeatmapCharacteristic: " + typeof(GameplayCoreSceneSetup).GetField("_oneColorBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_gameplaySetup));
+            logger.Debug("Discord Presence - diff.parentDifficultyBeatmapSet.beatmapCharacteristic: " + diff.parentDifficultyBeatmapSet.beatmapCharacteristic);
+            logger.Debug("Discord Presence - _gameplaySetup._oneColorBeatmapCharacteristic: " + typeof(GameplayCoreSceneSetup).GetField("_oneColorBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_gameplaySetup));
 #endif
             // Update gamemode (Standard / One Saber / No Arrow)
             if (_mainSetupData.gameplayModifiers.noArrows || diff.parentDifficultyBeatmapSet.beatmapCharacteristic.ToString().ToLower().Contains("noarrow"))
@@ -219,7 +257,7 @@ namespace BeatSaberDiscordPresence
             if (_mainSetupData.practiceSettings != null)
             {
 #if DEBUG
-                Console.WriteLine("Discord Presence - _mainSetupData.practiceSettings.startSongTime: " + _mainSetupData.practiceSettings.startSongTime);
+                logger.Debug("Discord Presence - _mainSetupData.practiceSettings.startSongTime: " + _mainSetupData.practiceSettings.startSongTime);
 #endif
                 if (_mainSetupData.practiceSettings.startInAdvanceAndClearNotes)
                 {
@@ -243,16 +281,22 @@ namespace BeatSaberDiscordPresence
         private string GetFlowTypeHumanReadable()
         {
             Type t = _mainFlowCoordinator.childFlowCoordinator.GetType();
-            Console.WriteLine("Discord Presence - Current Flow Coordinator: " + t);
+            logger.Debug("Current Flow Coordinator: " + t);
+            if (IsConnectedToMultiplayer())
+                return "Multiplayer";
             if (t == typeof(ArcadeFlowCoordinator))
                 return "Arcade"; // Unused ?
             if (t == typeof(PartyFreePlayFlowCoordinator))
                 return "Party";
-            if (t == typeof(SimpleDemoFlowCoordinator))
-                return "Demo"; // Unused ?
             if (t == typeof(CampaignFlowCoordinator))
                 return "Campaign";
             return "Solo";
+        }
+
+        private bool IsConnectedToMultiplayer()
+        {
+            object client = null;
+            return clientInstanceInroomField != null && (client = clientInstanceField.GetValue(null)) != null && (bool)clientInstanceInroomField.GetValue(client);
         }
 
         public void OnLevelWasLoaded(int level) { }
@@ -260,7 +304,6 @@ namespace BeatSaberDiscordPresence
         public void OnFixedUpdate() { }
         public void OnSceneLoaded(Scene scene, LoadSceneMode sceneMode) { }
         public void OnSceneUnloaded(Scene scene) { }
-        public void OnApplicationStart() { }
 
         private enum GameMode
         {
