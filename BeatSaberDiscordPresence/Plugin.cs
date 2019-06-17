@@ -40,7 +40,7 @@ namespace BeatSaberDiscordPresence
 
 
         private HarmonyMethod GetVoidPatch() => new HarmonyMethod(typeof(Plugin).GetMethod("VoidPatch", (BindingFlags)(-1)));
-        private bool VoidPatch() => false;
+        private static bool VoidPatch() => false;
 
 
         public void Init(IPA.Logging.Logger log)
@@ -101,7 +101,7 @@ namespace BeatSaberDiscordPresence
             logger.Info("Looking for YURFit (IPA)");
 #pragma warning disable CS0618
             IPlugin yurfit = PluginManager.Plugins.FirstOrDefault((IPlugin x) => x.Name == "YURfitMod");
-            if(yurfit != null)
+            if (yurfit != null)
             {
                 Type yurpresence = yurfit.GetType().Assembly.GetType("YURfitMod.RPC.YURpresence");
                 if (yurpresence != null)
