@@ -5,7 +5,6 @@ using System.Reflection;
 using Harmony;
 using IPA;
 using IPA.Loader;
-using IPA.Logging;
 using IPA.Old;
 using UnityEngine;
 using UnityEngine.SceneManagement;
