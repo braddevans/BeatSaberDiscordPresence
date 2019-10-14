@@ -1,8 +1,8 @@
 # BeatSaberDiscordPresence
 ![Preview Screenshot](https://i.imgur.com/1T0iebY.png)
 
-# Installation
-*This plugin requires IPA which you will automatically get if you install [the Song Loader Plugin](https://github.com/xyonico/BeatSaberSongInjector/releases).*
+# Manual Installation
+*This plugin requires BSIPA which you will automatically get when you run [ModAssistant](https://github.com/Assistant/ModAssistant/releases).*
 
 1. Make sure that Beat Saber is not running.
 2. Extract the contents of the zip into Beat Saber's installation folder.
@@ -15,4 +15,4 @@
 I haven't included the discord-rpc.dll that is required in source, so you need to get it yourself here: https://github.com/discordapp/discord-rpc/releases
 
 If you need help, ask us at the Beat Saber Mod Group Discord Server:
-https://discord.gg/Cz6PTM5
+https://discord.gg/beatsabermods
