@@ -239,8 +239,6 @@ namespace BeatSaberDiscordPresence
                 Presence.state += " | No Fail";
             if (_mainSetupData.gameplayModifiers.instaFail)
                 Presence.state += " | Instant Fail";
-            if (_mainSetupData.playerSpecificSettings.swapColors)
-                Presence.state += " | Mirrored";
             if (_mainSetupData.gameplayModifiers.disappearingArrows)
                 Presence.state += " | Disappearing Arrows";
             if (_mainSetupData.gameplayModifiers.ghostNotes)

@@ -36,24 +36,24 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony.1.2.0.1">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Libs\0Harmony.1.2.0.1.dll</HintPath>
+      <HintPath>C:\Users\Alppuccino\Oculus\Software\hyperbolic-magnetism-beat-saber\Libs\0Harmony.1.2.0.1.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>C:\Users\Alppuccino\Oculus\Software\hyperbolic-magnetism-beat-saber\Beat Saber_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="IPA.Loader">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\IPA\Data\Managed\IPA.Loader.dll</HintPath>
+      <HintPath>C:\Users\Alppuccino\Oculus\Software\hyperbolic-magnetism-beat-saber\IPA\Data\Managed\IPA.Loader.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>C:\Users\Alppuccino\Oculus\Software\hyperbolic-magnetism-beat-saber\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\..\..\jeux\steam\SteamApps\common\Beat Saber\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>C:\Users\Alppuccino\Oculus\Software\hyperbolic-magnetism-beat-saber\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
