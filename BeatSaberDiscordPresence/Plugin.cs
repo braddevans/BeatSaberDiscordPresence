@@ -11,13 +11,13 @@ using UnityEngine.SceneManagement;
 
 namespace BeatSaberDiscordPresence
 {
-	public class Plugin : IBeatSaberPlugin
+    public class Plugin : IBeatSaberPlugin
     {
         private const string MenuSceneName = "MenuCore";
-		private const string GameSceneName = "GameCore";
+        private const string GameSceneName = "GameCore";
 
-		private const string DiscordAppID = "445053620698742804";
-		public static readonly DiscordRpc.RichPresence Presence = new DiscordRpc.RichPresence();
+        private const string DiscordAppID = "658039028825718827";
+        public static readonly DiscordRpc.RichPresence Presence = new DiscordRpc.RichPresence();
 
         private IPA.Logging.Logger logger;
         private HarmonyInstance harmonyInstance;
@@ -28,13 +28,15 @@ namespace BeatSaberDiscordPresence
         private bool _init;
         private FieldInfo _gameplayCoreSceneSetupDataField = null;
         private FieldInfo _oneColorBeatmapCharacteristic = null;
+        private FieldInfo _90DegreeBeatmapCharacteristic = null;
+        private FieldInfo _360DegreeBeatmapCharacteristic = null;
         private Component _z;
 
         private FieldInfo clientInstanceInroomField;
         private FieldInfo clientInstanceField;
 
         private MonoBehaviour gameObject = null;
-        
+
         private GameMode _gamemode = GameMode.Standard;
 
 
@@ -64,6 +66,8 @@ namespace BeatSaberDiscordPresence
                 logger.Info("Fetching nonpublic fields");
                 _gameplayCoreSceneSetupDataField = typeof(GameplayCoreSceneSetup).GetField("_sceneSetupData", BindingFlags.NonPublic | BindingFlags.Instance);
                 _oneColorBeatmapCharacteristic = typeof(GameplayCoreSceneSetup).GetField("_oneColorBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance);
+                _90DegreeBeatmapCharacteristic = typeof(GameplayCoreSceneSetup).GetField("_90DegreeBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance);
+                _360DegreeBeatmapCharacteristic = typeof(GameplayCoreSceneSetup).GetField("_360DegreeBeatmapCharacteristic", BindingFlags.NonPublic | BindingFlags.Instance);
 #if DEBUG
                 logger.Debug("Discord Presence - Field SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData: " + _gameplayCoreSceneSetupDataField);
 #endif
@@ -88,7 +92,7 @@ namespace BeatSaberDiscordPresence
             if (beatsabermultiplayer != null)
             {
                 Type multiplayerClientType = beatsabermultiplayer.Metadata.Assembly.GetType("BeatSaberMultiplayer.Client");
-                if(multiplayerClientType != null)
+                if (multiplayerClientType != null)
                 {
                     clientInstanceField = multiplayerClientType.GetField("instance", (BindingFlags)(-1));
                     clientInstanceInroomField = multiplayerClientType.GetField("inRoom", (BindingFlags)(-1));
@@ -113,11 +117,20 @@ namespace BeatSaberDiscordPresence
                     logger.Warn("Found YURFit as IPA Plugin, but not type YURfitMod.RPC.YURpresence. There may be some conflivts between the two mods.");
 
             }
+            //Menu scene loaded
+            Presence.details = "In Menu";
+            Presence.state = string.Empty;
+            Presence.startTimestamp = default(long);
+            Presence.largeImageKey = "default";
+            Presence.largeImageText = "Beat Saber";
+            Presence.smallImageKey = "";
+            Presence.smallImageText = "";
+            DiscordRpc.UpdatePresence(Presence);
 #pragma warning restore CS0618
         }
 
         public void OnApplicationQuit()
-		{
+        {
             DiscordRpc.Shutdown();
         }
 
@@ -130,22 +143,22 @@ namespace BeatSaberDiscordPresence
         {
 
             if (newScene.name == MenuSceneName)
-			{
-				//Menu scene loaded
-				Presence.details = "In Menu";
-				Presence.state = string.Empty;
-				Presence.startTimestamp = default(long);
-				Presence.largeImageKey = "default";
-				Presence.largeImageText = "Beat Saber";
-				Presence.smallImageKey = "";
-				Presence.smallImageText = "";
-				DiscordRpc.UpdatePresence(Presence);
-			}
-			else if (newScene.name == GameSceneName)
-			{
+            {
+                //Menu scene loaded
+                Presence.details = "In Menu";
+                Presence.state = string.Empty;
+                Presence.startTimestamp = default(long);
+                Presence.largeImageKey = "default";
+                Presence.largeImageText = "Beat Saber";
+                Presence.smallImageKey = "";
+                Presence.smallImageText = "";
+                DiscordRpc.UpdatePresence(Presence);
+            }
+            else if (newScene.name == GameSceneName)
+            {
                 gameObject.StartCoroutine(UpdatePresenceAfterFrame());
-			}
-		}
+            }
+        }
 
         private IEnumerator UpdatePresenceAfterFrame()
         {
@@ -182,7 +195,7 @@ namespace BeatSaberDiscordPresence
 
             // Set presence main values
             IDifficultyBeatmap diff = _mainSetupData.difficultyBeatmap;
-            
+
             Presence.details = $"{diff.level.songName} | {diff.difficulty.Name()}";
             Presence.state = "";
 
@@ -190,9 +203,9 @@ namespace BeatSaberDiscordPresence
             {
                 //Console.WriteLine("--------------------------");
                 FieldInfo[] fields = _z.GetType().GetFields((BindingFlags)(-1));
-                foreach(FieldInfo fi in fields)
+                foreach (FieldInfo fi in fields)
                 {
-                    if(fi.FieldType.Name == "Mode" && fi.GetValue(_z).ToString() == "Playback")
+                    if (fi.FieldType.Name == "Mode" && fi.GetValue(_z).ToString() == "Playback")
                         Presence.state += "[Replay] ";
                     //logger.Debug("Discord Presence - [" + fi.Name + ": " + fi.FieldType.Name + "] => " + fi.GetValue(_z));
                 }
@@ -203,7 +216,7 @@ namespace BeatSaberDiscordPresence
                 Presence.state += "Custom | ";
             }
 
-            if(_mainSetupData.practiceSettings != null)
+            if (_mainSetupData.practiceSettings != null)
                 Presence.state += "Practice | ";
 
             Presence.state += GetFlowTypeHumanReadable() + " ";
@@ -216,9 +229,13 @@ namespace BeatSaberDiscordPresence
                 _gamemode = GameMode.NoArrows;
             else if (diff.parentDifficultyBeatmapSet.beatmapCharacteristic == (BeatmapCharacteristicSO)_oneColorBeatmapCharacteristic.GetValue(_gameplaySetup))
                 _gamemode = GameMode.OneSaber;
+            else if (diff.parentDifficultyBeatmapSet.beatmapCharacteristic.ToString().ToLower().Contains("90degree"))
+                _gamemode = GameMode.NinetyDegree;
+            else if (diff.parentDifficultyBeatmapSet.beatmapCharacteristic.ToString().ToLower().Contains("360degree"))
+                _gamemode = GameMode.ThreeSixtyDegree;
             else _gamemode = GameMode.Standard;
 
-            string gameplayModeText = _gamemode == GameMode.OneSaber ? "One Saber" : _gamemode == GameMode.NoArrows ? "No Arrow" : "Standard";
+            string gameplayModeText = _gamemode == GameMode.OneSaber ? "One Saber" : _gamemode == GameMode.NoArrows ? "No Arrow" : _gamemode == GameMode.NinetyDegree ? "90º" : _gamemode == GameMode.ThreeSixtyDegree ? "360º" : "Standard";
             Presence.state += gameplayModeText;
 
             // Set music speak
@@ -246,7 +263,7 @@ namespace BeatSaberDiscordPresence
 
             Presence.largeImageKey = "default";
             Presence.largeImageText = "Beat Saber";
-            Presence.smallImageKey = GetFlowTypeHumanReadable() == "Party" ? "party" : _gamemode == GameMode.OneSaber ? "one_saber" : _gamemode == GameMode.NoArrows ? "no_arrows" : "solo";
+            Presence.smallImageKey = GetFlowTypeHumanReadable() == "Party" ? "party" : _gamemode == GameMode.OneSaber ? "one_saber" : _gamemode == GameMode.NoArrows ? "no_arrows" : _gamemode == GameMode.NinetyDegree ? "90" : _gamemode == GameMode.ThreeSixtyDegree ? "360" : "solo";
             Presence.smallImageText = gameplayModeText;
             Presence.startTimestamp = (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
 
@@ -270,9 +287,9 @@ namespace BeatSaberDiscordPresence
         }
 
         public void OnUpdate()
-		{
-			DiscordRpc.RunCallbacks();
-		}
+        {
+            DiscordRpc.RunCallbacks();
+        }
 
 
         private string GetFlowTypeHumanReadable()
@@ -306,7 +323,9 @@ namespace BeatSaberDiscordPresence
         {
             Standard,
             OneSaber,
-            NoArrows
+            NoArrows,
+            NinetyDegree,
+            ThreeSixtyDegree
         }
     }
 }
