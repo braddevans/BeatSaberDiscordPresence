@@ -1,4 +1,6 @@
 # BeatSaberDiscordPresence
+## New and Updated for 2021
+
 ![Preview Screenshot](https://i.imgur.com/1T0iebY.png)
 
 # Manual Installation

@@ -1,15 +1,14 @@
-﻿using System;
+﻿#region
+
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace BeatSaberDiscordPresence
-{
-    public class DiscordRpc
-    {
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void ReadyCallback(ref DiscordUser connectedUser);
+#endregion
 
+namespace BeatSaberDiscordPresence {
+    public class DiscordRpc {
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void DisconnectedCallback(int errorCode, string message);
 
@@ -20,59 +19,23 @@ namespace BeatSaberDiscordPresence
         public delegate void JoinCallback(string secret);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void SpectateCallback(string secret);
+        public delegate void ReadyCallback(ref discordUser connectedUser);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void RequestCallback(ref DiscordUser request);
+        public delegate void RequestCallback(ref discordUser request);
 
-        public struct EventHandlers
-        {
-            public ReadyCallback readyCallback;
-            public DisconnectedCallback disconnectedCallback;
-            public ErrorCallback errorCallback;
-            public JoinCallback joinCallback;
-            public SpectateCallback spectateCallback;
-            public RequestCallback requestCallback;
-        }
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void SpectateCallback(string secret);
 
-        [Serializable, StructLayout(LayoutKind.Sequential)]
-        public struct RichPresenceStruct
-        {
-            public IntPtr state; /* max 128 bytes */
-            public IntPtr details; /* max 128 bytes */
-            public long startTimestamp;
-            public long endTimestamp;
-            public IntPtr largeImageKey; /* max 32 bytes */
-            public IntPtr largeImageText; /* max 128 bytes */
-            public IntPtr smallImageKey; /* max 32 bytes */
-            public IntPtr smallImageText; /* max 128 bytes */
-            public IntPtr partyId; /* max 128 bytes */
-            public int partySize;
-            public int partyMax;
-            public IntPtr matchSecret; /* max 128 bytes */
-            public IntPtr joinSecret; /* max 128 bytes */
-            public IntPtr spectateSecret; /* max 128 bytes */
-            public bool instance;
-        }
-
-        [Serializable]
-        public struct DiscordUser
-        {
-            public string userId;
-            public string username;
-            public string discriminator;
-            public string avatar;
-        }
-
-        public enum Reply
-        {
+        public enum Reply {
             No = 0,
             Yes = 1,
             Ignore = 2
         }
 
         [DllImport("discord-rpc", EntryPoint = "Discord_Initialize", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void Initialize(string applicationId, ref EventHandlers handlers, bool autoRegister, string optionalSteamId);
+        public static extern void Initialize(string applicationId, ref EventHandlers handlers, bool autoRegister,
+            string optionalSteamId);
 
         [DllImport("discord-rpc", EntryPoint = "Discord_Shutdown", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Shutdown();
@@ -92,44 +55,75 @@ namespace BeatSaberDiscordPresence
         [DllImport("discord-rpc", EntryPoint = "Discord_UpdateHandlers", CallingConvention = CallingConvention.Cdecl)]
         public static extern void UpdateHandlers(ref EventHandlers handlers);
 
-        public static void UpdatePresence(RichPresence presence)
-        {
+        public static void UpdatePresence(RichPresence presence) {
             var presencestruct = presence.GetStruct();
             UpdatePresenceNative(ref presencestruct);
             presence.FreeMem();
         }
 
-        public class RichPresence
-        {
-            private RichPresenceStruct _presence;
-            private readonly List<IntPtr> _buffers = new List<IntPtr>(10);
+        public struct EventHandlers {
+            public ReadyCallback readyCallback;
+            public DisconnectedCallback disconnectedCallback;
+            public ErrorCallback errorCallback;
+            public JoinCallback joinCallback;
+            public SpectateCallback spectateCallback;
+            public RequestCallback requestCallback;
+        }
 
-            public string state; /* max 128 bytes */
-            public string details; /* max 128 bytes */
+        [Serializable]
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RichPresenceStruct {
+            public IntPtr state; /* max 128 bytes */
+            public IntPtr details; /* max 128 bytes */
             public long startTimestamp;
             public long endTimestamp;
-            public string largeImageKey; /* max 32 bytes */
-            public string largeImageText; /* max 128 bytes */
-            public string smallImageKey; /* max 32 bytes */
-            public string smallImageText; /* max 128 bytes */
-            public string partyId; /* max 128 bytes */
+            public IntPtr largeImageKey; /* max 32 bytes */
+            public IntPtr largeImageText; /* max 128 bytes */
+            public IntPtr smallImageKey; /* max 32 bytes */
+            public IntPtr smallImageText; /* max 128 bytes */
+            public IntPtr partyId; /* max 128 bytes */
             public int partySize;
             public int partyMax;
-            public string matchSecret; /* max 128 bytes */
-            public string joinSecret; /* max 128 bytes */
-            public string spectateSecret; /* max 128 bytes */
+            public IntPtr matchSecret; /* max 128 bytes */
+            public IntPtr joinSecret; /* max 128 bytes */
+            public IntPtr spectateSecret; /* max 128 bytes */
             public bool instance;
+        }
+
+        [Serializable]
+        public struct discordUser {
+            public string userId;
+            public string username;
+            public string discriminator;
+            public string avatar;
+        }
+
+        public class RichPresence {
+            private readonly List<IntPtr> _buffers = new List<IntPtr>(10);
+            private RichPresenceStruct _presence;
+            public string details; /* max 128 bytes */
+            public long endTimestamp;
+            public bool instance;
+            public string joinSecret; /* max 128 bytes */
+            public string largeImageKey; /* max 32 bytes */
+            public string largeImageText; /* max 128 bytes */
+            public string matchSecret; /* max 128 bytes */
+            public string partyId; /* max 128 bytes */
+            public int partyMax;
+            public int partySize;
+            public string smallImageKey; /* max 32 bytes */
+            public string smallImageText; /* max 128 bytes */
+            public string spectateSecret; /* max 128 bytes */
+            public long startTimestamp;
+
+            public string state; /* max 128 bytes */
 
             /// <summary>
-            /// Get the <see cref="RichPresenceStruct"/> reprensentation of this instance
+            ///     Get the <see cref="RichPresenceStruct" /> reprensentation of this instance
             /// </summary>
-            /// <returns><see cref="RichPresenceStruct"/> reprensentation of this instance</returns>
-            internal RichPresenceStruct GetStruct()
-            {
-                if (_buffers.Count > 0)
-                {
-                    FreeMem();
-                }
+            /// <returns><see cref="RichPresenceStruct" /> reprensentation of this instance</returns>
+            internal RichPresenceStruct GetStruct() {
+                if (_buffers.Count > 0) FreeMem();
 
                 _presence.state = StrToPtr(state, 128);
                 _presence.details = StrToPtr(details, 128);
@@ -151,13 +145,12 @@ namespace BeatSaberDiscordPresence
             }
 
             /// <summary>
-            /// Returns a pointer to a representation of the given string with a size of maxbytes
+            ///     Returns a pointer to a representation of the given string with a size of maxbytes
             /// </summary>
             /// <param name="input">String to convert</param>
             /// <param name="maxbytes">Max number of bytes to use</param>
-            /// <returns>Pointer to the UTF-8 representation of <see cref="input"/></returns>
-            private IntPtr StrToPtr(string input, int maxbytes)
-            {
+            /// <returns>Pointer to the UTF-8 representation of <see cref="input" /></returns>
+            private IntPtr StrToPtr(string input, int maxbytes) {
                 if (string.IsNullOrEmpty(input)) return IntPtr.Zero;
                 var convstr = StrClampBytes(input, maxbytes);
                 var convbytecnt = Encoding.UTF8.GetByteCount(convstr);
@@ -168,36 +161,28 @@ namespace BeatSaberDiscordPresence
             }
 
             /// <summary>
-            /// Convert string to UTF-8 and add null termination
+            ///     Convert string to UTF-8 and add null termination
             /// </summary>
             /// <param name="toconv">string to convert</param>
-            /// <returns>UTF-8 representation of <see cref="toconv"/> with added null termination</returns>
-            private static string StrToUtf8NullTerm(string toconv)
-            {
+            /// <returns>UTF-8 representation of <see cref="toconv" /> with added null termination</returns>
+            private static string StrToUtf8NullTerm(string toconv) {
                 var str = toconv.Trim();
                 var bytes = Encoding.Default.GetBytes(str);
-                if (bytes.Length > 0 && bytes[bytes.Length - 1] != 0)
-                {
-                    str += "\0\0";
-                }
+                if (bytes.Length > 0 && bytes[bytes.Length - 1] != 0) str += "\0\0";
                 return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(str));
             }
 
             /// <summary>
-            /// Clamp the string to the given byte length preserving null termination
+            ///     Clamp the string to the given byte length preserving null termination
             /// </summary>
             /// <param name="toclamp">string to clamp</param>
             /// <param name="maxbytes">max bytes the resulting string should have (including null termination)</param>
-            /// <returns>null terminated string with a byte length less or equal to <see cref="maxbytes"/></returns>
-            private static string StrClampBytes(string toclamp, int maxbytes)
-            {
+            /// <returns>null terminated string with a byte length less or equal to <see cref="maxbytes" /></returns>
+            private static string StrClampBytes(string toclamp, int maxbytes) {
                 var str = StrToUtf8NullTerm(toclamp);
                 var strbytes = Encoding.UTF8.GetBytes(str);
 
-                if (strbytes.Length <= maxbytes)
-                {
-                    return str;
-                }
+                if (strbytes.Length <= maxbytes) return str;
 
                 var newstrbytes = new byte[] { };
                 Array.Copy(strbytes, 0, newstrbytes, 0, maxbytes - 1);
@@ -208,12 +193,10 @@ namespace BeatSaberDiscordPresence
             }
 
             /// <summary>
-            /// Free the allocated memory for conversion to <see cref="RichPresenceStruct"/>
+            ///     Free the allocated memory for conversion to <see cref="RichPresenceStruct" />
             /// </summary>
-            internal void FreeMem()
-            {
-                for (var i = _buffers.Count - 1; i >= 0; i--)
-                {
+            internal void FreeMem() {
+                for (var i = _buffers.Count - 1; i >= 0; i--) {
                     Marshal.FreeHGlobal(_buffers[i]);
                     _buffers.RemoveAt(i);
                 }
