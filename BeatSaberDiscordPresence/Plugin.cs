@@ -2,11 +2,13 @@
 
 using System;
 using System.Collections;
+using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using BS_Utils.Gameplay;
 using HarmonyLib;
 using IPA;
+using IPA.Config;
 using IPA.Loader;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +19,7 @@ using Object = UnityEngine.Object;
 
 namespace BeatSaberDiscordPresence {
     [Plugin(RuntimeOptions.DynamicInit)]
-    public class Plugin {
+    public partial class Plugin {
         public const string HarmonyId = "uk.co.breadhub.BeatSaberDiscordPresence";
 
         // origional variables start
@@ -37,7 +39,6 @@ namespace BeatSaberDiscordPresence {
         private MainFlowCoordinator _mainFlowCoordinator;
         private GameplayCoreSceneSetupData _mainSetupData;
         private readonly FieldInfo _oneColorBeatmapCharacteristic;
-        private Component _z;
         private FieldInfo clientInstanceField;
 
         private FieldInfo clientInstanceInroomField;
@@ -81,15 +82,6 @@ namespace BeatSaberDiscordPresence {
                 _360DegreeBeatmapCharacteristic =
                     typeof(GameplayCoreSceneSetupData).GetField("_360DegreeBeatmapCharacteristic",
                         BindingFlags.NonPublic | BindingFlags.Instance);
-#if DEBUG
-                logger?.Debug("Discord Presence - Field SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData: " +
-                              _gameplayCoreSceneSetupDataField);
-#endif
-                if (_gameplayCoreSceneSetupDataField == null) {
-                    logger?.Error("Unable to fetch SceneSetup<GameplayCoreSceneSetupData>._sceneSetupData");
-                    return;
-                }
-
                 logger?.Info("Init done !");
             }
             catch (Exception e) {
@@ -107,25 +99,9 @@ namespace BeatSaberDiscordPresence {
             return new HarmonyMethod(typeof(Plugin).GetMethod("VoidPatch", (BindingFlags) (-1)));
         }
 
-        #region BSIPA Config
 
-        //Uncomment to use BSIPA's config
-        /*
-        [Init]
-        public void InitWithConfig(Config conf)
-        {
-            Configuration.PluginConfig.Instance = conf.Generated<Configuration.PluginConfig>();
-            Plugin.Log?.Debug("Config loaded");
-        }
-        */
-
-        #endregion
 
         #region Disableable
-
-        /// <summary>
-        ///     Called when the plugin is enabled (including when the game starts if the plugin is enabled).
-        /// </summary>
         [OnEnable]
         public void OnEnable() {
             new GameObject("BeatSaberDiscordPresenceController").AddComponent<BeatSaberDiscordPresenceController>();
@@ -146,24 +122,9 @@ namespace BeatSaberDiscordPresence {
                 }
             }
 
-            logger.Info("Looking for YURFit (IPA)");
-#pragma warning disable CS0618
-            var yurfit = PluginManager.Plugins.FirstOrDefault(x => x.Name == "YURfitMod");
-            if (yurfit != null) {
-                var yurpresence = yurfit.GetType().Assembly.GetType("YURfitMod.RPC.YURpresence");
-                if (yurpresence != null) {
-                    harmonyInstance.Patch(yurpresence.GetMethod("Awake", (BindingFlags) (-1)), GetVoidPatch());
-                    harmonyInstance.Patch(yurpresence.GetMethod("Menu", (BindingFlags) (-1)), GetVoidPatch());
-                    logger.Info("YURFit found as IPA Plugin and patched.");
-                }
-                else {
-                    logger.Warn(
-                        "Found YURFit as IPA Plugin, but not type YURfitMod.RPC.YURpresence. There may be some conflivts between the two mods.");
-                }
-            }
-
             //add the OnActiveSceneChanged method to the scene manager's activeSceneChanged 
             SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            OnApplicationStart();
 
             //Menu scene loaded
             Presence.details = "In Menu";
@@ -174,7 +135,6 @@ namespace BeatSaberDiscordPresence {
             Presence.smallImageKey = "";
             Presence.smallImageText = "";
             DiscordRpc.UpdatePresence(Presence);
-#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -188,7 +148,8 @@ namespace BeatSaberDiscordPresence {
             if (pluginController != null)
                 Object.Destroy(pluginController);
             DiscordRpc.Shutdown();
-            //RemoveHarmonyPatches();
+            OnApplicationQuit();
+            RemoveHarmonyPatches();
         }
 
         /// <summary>
@@ -277,37 +238,17 @@ namespace BeatSaberDiscordPresence {
         }
 
         private IEnumerator updatePresenceAfterFrame() {
-// Wait for next frame
             yield return true;
-
-// Fetch all required objects
             _mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
             _gameplaySetup = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData;
             
             if (BS_Utils.Plugin.LevelData.IsSet) {
-                if (_z == null) {
-                    _z = Resources.FindObjectsOfTypeAll<Component>()
-                        .FirstOrDefault(c => c != null && c.GetType().Name == "Z");
-                    if (_z == null)
-                        logger.Warn(
-                            "No element of type \"Z\" found. Maybe the game isn't running a version of ScoreSaber supporting replay ?");
-                }
-
                 if (_gameplaySetup != null)
                     _mainSetupData =
                         _gameplayCoreSceneSetupDataField.GetValue(_gameplaySetup) as GameplayCoreSceneSetupData;
-#if DEBUG
-                logger.Debug("_gameplaySetup: " + _gameplaySetup);
-                logger.Debug("_gameplayCoreSceneSetupDataField: " + _gameplayCoreSceneSetupDataField);
-                logger.Debug("_mainSetupData: " + _mainSetupData);
-                getFlowTypeHumanReadable(); // Used to debug print values
-#endif
+                
                 // Check if every required object is found
                 if (_mainSetupData == null || _gameplaySetup == null || _mainFlowCoordinator == null) {
-                    logger.Error("Error finding the scriptable objects required to update presence. (_mainSetupData: " +
-                                 (_mainSetupData == null ? "N/A" : "OK") + ", _gameplaySetup: " +
-                                 (_gameplaySetup == null ? "N/A" : "OK") + ", _mainFlowCoordinator: " +
-                                 (_mainFlowCoordinator == null ? "N/A" : "OK"));
                     Presence.details = "Playing";
                     DiscordRpc.UpdatePresence(Presence);
                     yield break;
@@ -319,29 +260,13 @@ namespace BeatSaberDiscordPresence {
                 Presence.details = $"{diff.level.songName} | {diff.difficulty.Name()}";
                 Presence.state = "";
 
-                if (_z != null) {
-                    //Console.WriteLine("--------------------------");
-                    var fields = _z.GetType().GetFields((BindingFlags) (-1));
-                    foreach (var fi in fields)
-                        if (fi.FieldType.Name == "Mode" && fi.GetValue(_z).ToString() == "Playback")
-                            Presence.state += "[Replay] ";
-                    //logger.Debug("Discord Presence - [" + fi.Name + ": " + fi.FieldType.Name + "] => " + fi.GetValue(_z));
-                }
-
                 if (diff.level.levelID.Contains('∎')) Presence.state += "Custom | ";
 
                 if (_mainSetupData.practiceSettings != null)
                     Presence.state += "Practice | ";
 
                 Presence.state += getFlowTypeHumanReadable() + " ";
-#if DEBUG
-                logger.Debug("Discord Presence - diff.parentDifficultyBeatmapSet.beatmapCharacteristic: " +
-                             diff.parentDifficultyBeatmapSet.beatmapCharacteristic);
-                logger.Debug("Discord Presence - _gameplaySetup._oneColorBeatmapCharacteristic: " +
-                             typeof(GameplayCoreInstaller).GetField("_oneColorBeatmapCharacteristic",
-                                     BindingFlags.NonPublic | BindingFlags.Instance)
-                                 ?.GetValue(_gameplaySetup));
-#endif
+
                 // Update gamemode (Standard / One Saber / No Arrow)
                 if (_mainSetupData.gameplayModifiers.noArrows || diff.parentDifficultyBeatmapSet.beatmapCharacteristic
                     .ToString().ToLower().Contains("noarrow"))
@@ -396,10 +321,6 @@ namespace BeatSaberDiscordPresence {
 
                 // Set startTimestamp offset if we are in training mode
                 if (_mainSetupData.practiceSettings != null) {
-#if DEBUG
-                    logger.Debug("Discord Presence - _mainSetupData.practiceSettings.startSongTime: " +
-                                 _mainSetupData.practiceSettings.startSongTime);
-#endif
                     if (_mainSetupData.practiceSettings.startInAdvanceAndClearNotes)
                         Presence.startTimestamp -=
                             (long) Mathf.Max(0f, _mainSetupData.practiceSettings.startSongTime - 3f);
@@ -429,90 +350,11 @@ namespace BeatSaberDiscordPresence {
         }
 
         private bool isConnectedToMultiplayer() {
-            object client = null;
+            object client;
             return clientInstanceInroomField != null && (client = clientInstanceField.GetValue(null)) != null &&
                    (bool) clientInstanceInroomField.GetValue(client);
         }
-
-        public void OnLevelWasLoaded(int level) {
-        }
-
-        public void OnLevelWasInitialized(int level) {
-        }
-
-        public void OnFixedUpdate() {
-        }
-
-        public void OnSceneLoaded(Scene scene, LoadSceneMode sceneMode) {
-        }
-
-        public void OnSceneUnloaded(Scene scene) {
-        }
-
-        private enum gameMode {
-            Standard,
-            OneSaber,
-            NoArrows,
-            NinetyDegree,
-            ThreeSixtyDegree
-        }
     }
-
-
-    /*
-    /// <summary>
-    /// Called when the plugin is disabled and on Beat Saber quit.
-    /// Return Task for when the plugin needs to do some long-running, asynchronous work to disable.
-    /// [OnDisable] methods that return Task are called after all [OnDisable] methods that return void.
-    /// </summary>
-    [OnDisable]
-    public async Task OnDisableAsync()
-    {
-        await LongRunningUnloadTask().ConfigureAwait(false);
-    }
-    */
-
-    #endregion
-
-    // Uncomment the methods in this section if using Harmony
-
-    #region Harmony
-
-    /*
-    /// <summary>
-    /// Attempts to apply all the Harmony patches in this assembly.
-    /// </summary>
-    internal static void ApplyHarmonyPatches()
-    {
-        try
-        {
-            Plugin.Log?.Debug("Applying Harmony patches.");
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log?.Error("Error applying Harmony patches: " + ex.Message);
-            Plugin.Log?.Debug(ex);
-        }
-    }
-
-    /// <summary>
-    /// Attempts to remove all the Harmony patches that used our HarmonyId.
-    /// </summary>
-    internal static void RemoveHarmonyPatches()
-    {
-        try
-        {
-            // Removes all patches with this HarmonyId
-            harmony.UnpatchAll(HarmonyId);
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log?.Error("Error removing Harmony patches: " + ex.Message);
-            Plugin.Log?.Debug(ex);
-        }
-    }
-    */
 
     #endregion
 }
